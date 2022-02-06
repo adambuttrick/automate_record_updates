@@ -16,10 +16,13 @@ def generate_file_path(ror_id):
 	return json_file_path
 
 
-def download_record(ror_id):
+def download_record(ror_id, geonames_id=None):
 	api_url = 'https://api.ror.org/organizations/' + ror_id
 	ror_data = requests.get(api_url).json()
-	ror_data = update_geonames(ror_data)
+	if geonames_id == None:
+		ror_data = update_geonames(ror_data)
+	else:
+		ror_data = update_geonames(ror_data, geonames_id)
 	json_file_path = generate_file_path(ror_id)
 	with open(json_file_path, 'w') as f_out:
 		json.dump(ror_data, f_out)
@@ -42,6 +45,13 @@ def add_repeating_field(json_file, field, value):
 	with open(json_file, 'r+') as json_in:
 		json_data = json.load(json_in)
 		json_data[field].append(value)
+		export_json(json_data, json_in)
+
+
+def replace_repeating_field(json_file, field, value):
+	with open(json_file, 'r+') as json_in:
+		json_data = json.load(json_in)
+		json_data[field] = [value]
 		export_json(json_data, json_in)
 
 
@@ -73,9 +83,13 @@ def add_label(json_file, value):
 		label_text, label_lang = value[0], value[1]
 		iso639_codes = load_iso_codes()
 		try:
-			lang_iso_code = iso639_codes[label_lang]
-			json_data['labels'].append(
-				{'label': label_text, 'iso639': lang_iso_code})
+			if label_lang in iso639_codes.values():
+				json_data['labels'].append(
+				{'label': label_text, 'iso639': label_lang})
+			else:
+				lang_iso_code = iso639_codes[label_lang]
+				json_data['labels'].append(
+					{'label': label_text, 'iso639': lang_iso_code})
 			export_json(json_data, json_in)
 		except KeyError:
 			logging.error('Error:', label_lang,
@@ -138,7 +152,7 @@ def parse_record_updates_file(f):
 					r'(?<=\.)(.*)(?=\=\=)', update).group(1)
 				change_value = update.split('==')[1].strip()
 				record_updates[ror_id].append(
-					{'change_type': change_type, 'change_field': change_field, 'change_value': change_value})
+						{'change_type': change_type, 'change_field': change_field, 'change_value': change_value})
 	return record_updates
 
 
@@ -147,7 +161,14 @@ def update_records(record_updates):
 	repeating_fields = ['links', 'types', 'aliases', 'acronyms']
 	external_ids = ['Wikidata', 'ISNI', 'FundRef']
 	for ror_id, record_changes in record_updates.items():
-		download_record(ror_id)
+		all_change_fields = [r_c['change_field'] for r_c in record_changes]
+		if 'Geonames' in all_change_fields:
+			geonames_index = all_change_fields.index('Geonames')
+			geonames_change = record_changes[geonames_index]
+			geonames_id = geonames_change['change_value']
+			download_record(ror_id, geonames_id)
+		else:
+			download_record(ror_id)
 		json_file_path = generate_file_path(ror_id)
 		for record_change in record_changes:
 			if record_change['change_field'] in non_repeating_fields:
@@ -156,6 +177,9 @@ def update_records(record_updates):
 			if record_change['change_field'] in repeating_fields:
 				if record_change['change_type'] == 'add':
 					add_repeating_field(
+						json_file_path, record_change['change_field'], record_change['change_value'])
+				elif record_change['change_type'] == 'replace':
+					replace_repeating_field(
 						json_file_path, record_change['change_field'], record_change['change_value'])
 				elif record_change['change_type'] == 'delete':
 					delete_repeating_field(
