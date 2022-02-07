@@ -124,6 +124,14 @@ def add_external_id(json_file, field, value):
 		export_json(json_data, json_in)
 
 
+def replace_external_id(json_file, field, value):
+	with open(json_file, 'r+') as json_in:
+		json_data = json.load(json_in)
+		json_data['external_ids'][field] = {
+			'preferred': value, 'all': [value]}
+		export_json(json_data, json_in)
+
+
 def delete_external_id(json_file, field, value):
 	with open(json_file, 'r+') as json_in:
 		json_data = json.load(json_in)
@@ -194,6 +202,9 @@ def update_records(record_updates):
 			if record_change['change_field'] in external_ids:
 				if record_change['change_type'] == 'add':
 					add_external_id(
+						json_file_path, record_change['change_field'], record_change['change_value'])
+				if record_change['change_type'] == 'replace':
+					replace_external_id(
 						json_file_path, record_change['change_field'], record_change['change_value'])
 				if record_change['change_type'] == 'delete':
 					delete_external_id(
