@@ -6,7 +6,7 @@ import json
 import logging
 import pkg_resources
 import requests
-from update_address import update_geonames
+import update_address
 from collections import defaultdict
 
 
@@ -20,9 +20,9 @@ def download_record(ror_id, geonames_id=None):
 	api_url = 'https://api.ror.org/organizations/' + ror_id
 	ror_data = requests.get(api_url).json()
 	if geonames_id == None:
-		ror_data = update_geonames(ror_data)
+		ror_data = update_address.update_geonames(ror_data)
 	else:
-		ror_data = update_geonames(ror_data, geonames_id)
+		ror_data = update_address.update_geonames(ror_data, geonames_id)
 	json_file_path = generate_file_path(ror_id)
 	with open(json_file_path, 'w') as f_out:
 		json.dump(ror_data, f_out)
