@@ -31,7 +31,7 @@ def create_modify_records_metadata():
     pages = [1, 2, 3]
     issue_urls = []
     outfile = os.getcwd() + '/modify_records_metadata.csv'
-    api_fields = ['issue_id', 'api_url', 'html_url']
+    api_fields = ['id', 'url', 'html_url']
     ror_fields = ['name', 'ror_id', 'update_field']
     issue_field_mappings = {
         'name': 'Name of organization:',
